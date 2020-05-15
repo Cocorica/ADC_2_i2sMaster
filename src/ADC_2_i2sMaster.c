@@ -306,7 +306,8 @@ init_timerA3_for_ADC(void)
 int
 main(void)
 {
-    //
+	uint32_t u32ADCpg;
+	//
     // Set the clock frequency.
     //
     if (AM_HAL_STATUS_SUCCESS != am_hal_clkgen_control(AM_HAL_CLKGEN_CONTROL_SYSCLK_MAX, 0))
@@ -428,24 +429,10 @@ main(void)
         if (g_bADCDMAComplete)
         {
         	am_hal_gpio_output_toggle(8);
+			u32ADCpg = g_u32ADCPingpong;
 
 
-			if(g_u32PCM_Index+BUF_SIZE <= PCM_SAMPLE_BUF_SIZE)
-			{
-				 for(int i=0; i < BUF_SIZE; i++)
-					g_i16PCMSampleBuffer[g_u32PCM_Index+i] = (((g_u32ADCBuf[(g_u32ADCPingpong)%2][i]) & 0xFFFFF) >> 6)-(0x3FFF/2);
-
-				 g_u32PCM_Index += BUF_SIZE;
-			}
-			else
-			{
-				for(int i=0; i < PCM_SAMPLE_BUF_SIZE; i++)
-					am_util_stdio_printf("%d\n",g_i16PCMSampleBuffer[i]);
-				while(1);
-			}
-
-
-            //
+			//
             // Reset the DMA completion and error flags.
             //
             g_bADCDMAComplete = false;
@@ -470,6 +457,30 @@ main(void)
             {
                 am_util_stdio_printf("Error - triggering the ADC failed.\n");
             }
+
+
+			if(g_u32PCM_Index+BUF_SIZE <= PCM_SAMPLE_BUF_SIZE)
+			{
+				 for(int i=0; i < BUF_SIZE; i++)
+					g_i16PCMSampleBuffer[g_u32PCM_Index+i] = (((g_u32ADCBuf[(u32ADCpg)%2][i]) & 0xFFFFF) >> 6)-(0x3FFF/2);
+
+				 g_u32PCM_Index += BUF_SIZE;
+			}
+			else
+			{
+				for(int i=0; i < PCM_SAMPLE_BUF_SIZE; i++)
+					am_util_stdio_printf("%d\n",g_i16PCMSampleBuffer[i]);
+				while(1);
+			}
+
+			if(g_bADCDMAComplete == true)
+			{
+				am_util_stdio_printf("\n\nADCPingpong Overflow!!!!!\n");
+				while(1);
+			}
+
+			
+
         } // if ()
     } // while()
 }

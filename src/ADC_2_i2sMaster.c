@@ -1,21 +1,5 @@
 //*****************************************************************************
 //
-//! @file adc_lpmode0_dma.c
-//!
-//! @brief This example takes samples with the ADC at high-speed using DMA.
-//!
-//! Purpose: This example shows the CTIMER-A3 triggering repeated samples of an external
-//! input at 1.2Msps in LPMODE0.  The example uses the CTIMER-A3 to trigger
-//! ADC sampling.  Each data point is 128 sample average and is transferred
-//! from the ADC FIFO into an SRAM buffer using DMA.
-//!
-//! Printing takes place over the ITM at 1M Baud.
-//!
-//
-//*****************************************************************************
-
-//*****************************************************************************
-//
 // Copyright (c) 2019, Ambiq Micro
 // All rights reserved.
 // 
@@ -56,6 +40,9 @@
 #include "am_bsp.h"
 #include "am_util.h"
 
+#define ADC_PAD_NO 29
+#define ADC_PAD_FUNCSEL AM_HAL_PIN_29_ADCSE1
+
 //*****************************************************************************
 //
 // Define a circular buffer to hold the ADC samples
@@ -90,9 +77,9 @@ volatile bool                   g_bADCDMAError;
 //
 // Define the ADC SE0 pin to be used.
 //
-const am_hal_gpio_pincfg_t g_AM_PIN_29_ADCSE1 =
+const am_hal_gpio_pincfg_t g_AM_ADC_PAD_CONFIG =
 {
-    .uFuncSel       = AM_HAL_PIN_29_ADCSE1,
+    .uFuncSel       = ADC_PAD_FUNCSEL,
 };
 
 
@@ -379,7 +366,7 @@ main(void)
     //
     // Set a pin to act as our ADC input
     //
-    am_hal_gpio_pinconfig(29, g_AM_PIN_29_ADCSE1);
+    am_hal_gpio_pinconfig(ADC_PAD_NO, g_AM_ADC_PAD_CONFIG);
 
     //
     // Configure the ADC
@@ -460,7 +447,7 @@ main(void)
 				//fvalue = ((float)((g_ui32ADCSampleBuffer[i] & 0xFFFFF) >> 4)/(float)0xFFFF)*1.495;
 				//am_util_stdio_printf("%f\n",fvalue);
 				//am_util_delay_ms(1);
-				am_util_stdio_printf("%d\n",(((g_ui32ADCSampleBuffer[i] & 0xFFFFF) >> 4) - 39321));
+				am_util_stdio_printf("%d\n",(((g_ui32ADCSampleBuffer[i] & 0xFFFFF) >> 6)-(0x3FFF/2)));
 			}
 
 			 while(1);

@@ -39,6 +39,7 @@
 #include "am_mcu_apollo.h"
 #include "am_bsp.h"
 #include "am_util.h"
+#include "I2S_Master.h"
 
 #define ADC_PAD_NO 29
 #define ADC_PAD_FUNCSEL AM_HAL_PIN_29_ADCSE1
@@ -50,10 +51,12 @@
 //*****************************************************************************
 #define ADC_EXAMPLE_DEBUG   1
 
+/*Table 929: GLOBEN Register Bits*/
+//A3 Bit-6
+#define ADC_TMR_GLOBEN_MASK (1<<6)
 //
 // ADC Sample buffer.
 //
-#define BUF_SIZE 128
 uint32_t g_u32ADCBuf[2][BUF_SIZE] = {{0},{0}};
 uint32_t g_u32ADCPingpong = 1;
 
@@ -307,6 +310,7 @@ int
 main(void)
 {
 	uint32_t u32ADCpg;
+	uint32_t u32I2Spg;
 	//
     // Set the clock frequency.
     //
@@ -369,6 +373,7 @@ main(void)
 	am_hal_gpio_state_write(6, AM_HAL_GPIO_OUTPUT_SET);
 	am_hal_gpio_state_write(8, AM_HAL_GPIO_OUTPUT_SET);
 
+	global_disable(ADC_TMR_GLOBEN_MASK|I2S_GLOBEN_MASK);
     //
     // Start the CTIMER A3 for timer-based ADC measurements.
     //
@@ -378,8 +383,7 @@ main(void)
     // Enable interrupts.
     //
     NVIC_EnableIRQ(ADC_IRQn);
-    am_hal_interrupt_master_enable();
-
+    
     //
     // Set a pin to act as our ADC input
     //
@@ -398,8 +402,10 @@ main(void)
         am_util_stdio_printf("Error - triggering the ADC failed.\n");
     }
 
+	I2S_init();
 
-
+	global_enable(ADC_TMR_GLOBEN_MASK|I2S_GLOBEN_MASK);
+	am_hal_interrupt_master_enable();
 
     //
     // Loop forever.
@@ -430,6 +436,7 @@ main(void)
         {
         	am_hal_gpio_output_toggle(8);
 			u32ADCpg = g_u32ADCPingpong;
+			u32I2Spg = u32I2SPingpong;
 
 
 			//
@@ -458,7 +465,11 @@ main(void)
                 am_util_stdio_printf("Error - triggering the ADC failed.\n");
             }
 
+#if 1
+			for(int i=0; i < BUF_SIZE; i++)
+				i16I2SBuf[(u32I2Spg+1)%2][i] = (((g_u32ADCBuf[(u32ADCpg)%2][i]) & 0xFFFFF) >> 6)-(0x3FFF/2);
 
+#else
 			if(g_u32PCM_Index+BUF_SIZE <= PCM_SAMPLE_BUF_SIZE)
 			{
 				 for(int i=0; i < BUF_SIZE; i++)
@@ -472,7 +483,7 @@ main(void)
 					am_util_stdio_printf("%d\n",g_i16PCMSampleBuffer[i]);
 				while(1);
 			}
-
+#endif
 			if(g_bADCDMAComplete == true)
 			{
 				am_util_stdio_printf("\n\nADCPingpong Overflow!!!!!\n");

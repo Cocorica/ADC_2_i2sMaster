@@ -53,9 +53,13 @@
 //
 // ADC Sample buffer.
 //
-//#define ADC_SAMPLE_BUF_SIZE 128
-#define ADC_SAMPLE_BUF_SIZE 64000
-uint32_t g_ui32ADCSampleBuffer[ADC_SAMPLE_BUF_SIZE];
+#define BUF_SIZE 128
+uint32_t g_u32ADCBuf[2][BUF_SIZE] = {{0},{0}};
+uint32_t g_u32ADCPingpong = 1;
+
+#define PCM_SAMPLE_BUF_SIZE 64000
+int16_t g_i16PCMSampleBuffer[PCM_SAMPLE_BUF_SIZE];
+uint32_t g_u32PCM_Index = 0;
 
 //am_hal_adc_sample_t SampleBuffer[ADC_SAMPLE_BUF_SIZE];
 
@@ -81,7 +85,6 @@ const am_hal_gpio_pincfg_t g_AM_ADC_PAD_CONFIG =
 {
     .uFuncSel       = ADC_PAD_FUNCSEL,
 };
-
 
 //*****************************************************************************
 //
@@ -172,8 +175,8 @@ adc_config_dma(void)
     ADCDMAConfig.bDynamicPriority = true;
     ADCDMAConfig.ePriority = AM_HAL_ADC_PRIOR_SERVICE_IMMED;
     ADCDMAConfig.bDMAEnable = true;
-    ADCDMAConfig.ui32SampleCount = ADC_SAMPLE_BUF_SIZE;
-    ADCDMAConfig.ui32TargetAddress = (uint32_t)g_ui32ADCSampleBuffer;
+    ADCDMAConfig.ui32SampleCount = BUF_SIZE;
+    ADCDMAConfig.ui32TargetAddress = (uint32_t)(g_u32ADCBuf[(++g_u32ADCPingpong)%2]);
     if (AM_HAL_STATUS_SUCCESS != am_hal_adc_configure_dma(g_ADCHandle, &ADCDMAConfig))
     {
         am_util_stdio_printf("Error - configuring ADC DMA failed.\n");
@@ -352,6 +355,19 @@ main(void)
     //
     am_bsp_uart_printf_enable();
 
+
+
+	//
+    // Print the banner.
+    //
+    am_util_stdio_terminal_clear();
+    am_util_stdio_printf("ADC Example with 1.2Msps and LPMODE=0\n");
+
+	am_hal_gpio_pinconfig(6, g_AM_HAL_GPIO_OUTPUT);
+	am_hal_gpio_pinconfig(8, g_AM_HAL_GPIO_OUTPUT);
+	am_hal_gpio_state_write(6, AM_HAL_GPIO_OUTPUT_SET);
+	am_hal_gpio_state_write(8, AM_HAL_GPIO_OUTPUT_SET);
+
     //
     // Start the CTIMER A3 for timer-based ADC measurements.
     //
@@ -381,22 +397,7 @@ main(void)
         am_util_stdio_printf("Error - triggering the ADC failed.\n");
     }
 
-    //
-    // Print the banner.
-    //
-    am_util_stdio_terminal_clear();
-    am_util_stdio_printf("ADC Example with 1.2Msps and LPMODE=0\n");
 
-    //
-    // Allow time for all printing to finish.
-    //
-    am_util_delay_ms(10);
-
-
-	am_hal_gpio_pinconfig(6, g_AM_HAL_GPIO_OUTPUT);
-	am_hal_gpio_pinconfig(8, g_AM_HAL_GPIO_OUTPUT);
-	am_hal_gpio_state_write(6, AM_HAL_GPIO_OUTPUT_SET);
-	am_hal_gpio_state_write(8, AM_HAL_GPIO_OUTPUT_SET);
 
 
     //
@@ -428,32 +429,20 @@ main(void)
         {
         	am_hal_gpio_output_toggle(8);
 
-            {
-#if 0
-                uint32_t        ui32SampleCount;
-                am_util_stdio_printf("DMA Complete\n");
-                ui32SampleCount = ADC_SAMPLE_BUF_SIZE;
-                if (AM_HAL_STATUS_SUCCESS != am_hal_adc_samples_read(g_ADCHandle, false,
-                                                                     g_ui32ADCSampleBuffer,
-                                                                     &ui32SampleCount,
-                                                                     SampleBuffer))
-                {
-                    am_util_stdio_printf("Error - failed to process samples.\n");
-                }
-#else
-			 for(int i=0; i < ADC_SAMPLE_BUF_SIZE; i++)
-			 {
-				//volatile static float fvalue = 0;
-				//fvalue = ((float)((g_ui32ADCSampleBuffer[i] & 0xFFFFF) >> 4)/(float)0xFFFF)*1.495;
-				//am_util_stdio_printf("%f\n",fvalue);
-				//am_util_delay_ms(1);
-				am_util_stdio_printf("%d\n",(((g_ui32ADCSampleBuffer[i] & 0xFFFFF) >> 6)-(0x3FFF/2)));
-			}
 
-			 while(1);
-			
-#endif
-            }
+			if(g_u32PCM_Index+BUF_SIZE <= PCM_SAMPLE_BUF_SIZE)
+			{
+				 for(int i=0; i < BUF_SIZE; i++)
+					g_i16PCMSampleBuffer[g_u32PCM_Index+i] = (((g_u32ADCBuf[(g_u32ADCPingpong)%2][i]) & 0xFFFFF) >> 6)-(0x3FFF/2);
+
+				 g_u32PCM_Index += BUF_SIZE;
+			}
+			else
+			{
+				for(int i=0; i < PCM_SAMPLE_BUF_SIZE; i++)
+					am_util_stdio_printf("%d\n",g_i16PCMSampleBuffer[i]);
+				while(1);
+			}
 
 
             //

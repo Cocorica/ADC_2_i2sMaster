@@ -99,8 +99,6 @@ am_adc_isr(void)
 {
     uint32_t ui32IntMask;
 
-	am_hal_gpio_output_toggle(6);
-
     //
     // Read the interrupt status.
     //
@@ -288,7 +286,7 @@ init_timerA3_for_ADC(void)
 
     am_hal_ctimer_int_enable(AM_HAL_CTIMER_INT_TIMERA3);
 
-    am_hal_ctimer_period_set(3, AM_HAL_CTIMER_TIMERA, 185, 93);
+    am_hal_ctimer_period_set(3, AM_HAL_CTIMER_TIMERA, (192-1), (192/2));
 
     //
     // Enable the timer A3 to trigger the ADC directly
@@ -436,7 +434,7 @@ main(void)
         {
         	am_hal_gpio_output_toggle(8);
 			u32ADCpg = g_u32ADCPingpong;
-			u32I2Spg = u32I2SPingpong;
+			u32I2Spg = u32I2SPingpong+1;
 
 
 			//
@@ -467,7 +465,7 @@ main(void)
 
 #if 1
 			for(int i=0; i < BUF_SIZE; i++)
-				i16I2SBuf[(u32I2Spg+1)%2][i] = (((g_u32ADCBuf[(u32ADCpg)%2][i]) & 0xFFFFF) >> 6)-(0x3FFF/2);
+				i16I2SBuf[(u32I2Spg)%2][i] = (((g_u32ADCBuf[(u32ADCpg)%2][i]) & 0xFFFFF) >> 6)-(0x3FFF/2);
 
 #else
 			if(g_u32PCM_Index+BUF_SIZE <= PCM_SAMPLE_BUF_SIZE)
@@ -487,6 +485,12 @@ main(void)
 			if(g_bADCDMAComplete == true)
 			{
 				am_util_stdio_printf("\n\nADCPingpong Overflow!!!!!\n");
+				while(1);
+			}
+
+			if(u32I2Spg == u32I2SPingpong)
+			{
+				am_util_stdio_printf("\n\nI2SPingpong Overflow!!!!!\n");
 				while(1);
 			}
 

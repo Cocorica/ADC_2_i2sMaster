@@ -35,7 +35,6 @@ uint16_t reverse_bit16(uint16_t x)
 void am_ctimer_isr(void)
 {
     uint32_t ui32Status;
-	//am_hal_gpio_output_toggle(6);
 
     ui32Status = am_hal_ctimer_int_status_get(false);
     am_hal_ctimer_int_clear(ui32Status);
@@ -311,8 +310,6 @@ static void timer_handler(void)
 	static uint32_t index = 0;
 	static int16_t *pcm_idx = i16I2SBuf[0];
 
-	am_hal_gpio_state_write(6, AM_HAL_GPIO_OUTPUT_CLEAR);
-
 	g_bitflag +=1;
 
 	ui16Pattern0 = reverse_bit16((uint16_t)*(pcm_idx+index));
@@ -351,8 +348,7 @@ static void timer_handler(void)
 		pcm_idx = i16I2SBuf[(++u32I2SPingpong)%2];
 		am_hal_gpio_output_toggle(6);
 	}
-		
-	am_hal_gpio_state_write(6, AM_HAL_GPIO_OUTPUT_SET);
+	
 	return;
 }
 
